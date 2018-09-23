@@ -1,18 +1,20 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+#os.environ["CUDA_VISIBLE_DEVICES"]="1"
 import sys
 import glob
 import argparse
 import matplotlib.pyplot as plt
 import tensorflow as tf
-from tensorflow import keras
-from keras.applications.inception_v3 import InceptionV3, preprocess_input
-from keras.models import Model
-from keras.layers import Dense, GlobalAveragePooling2D
-from keras.preprocessing.image import ImageDataGenerator
-from keras.optimizers import SGD
+#from tensorflow import keras
+from tensorflow.keras.applications.vgg16 import VGG16, preprocess_input
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.optimizers import SGD
 import config
-IM_WIDTH, IM_HEIGHT = 299, 299 #fixed size for InceptionV3
+import ipdb
+#ipdb.set_trace()
+IM_WIDTH, IM_HEIGHT = 224, 224 #fixed size for InceptionV3
 NB_EPOCHS = 3
 BAT_SIZE = 32
 FC_SIZE = 1024
@@ -28,17 +30,18 @@ def get_nb_files(directory):
 	return cnt
 
 def add_new_last_layer(base_model, nb_classes):
+	#ipdb.set_trace()
 	x = base_model.output
 	x = GlobalAveragePooling2D()(x)
 	x = Dense(FC_SIZE, activation='relu')(x)
 	predictions = Dense(nb_classes, activation='softmax')(x)
-	model = Model(input=base_model.input, output=predictions)
+	model = Model(inputs=base_model.input, outputs=predictions)
 	return model
 def train(args):
 	nb_train_samples = get_nb_files(args.train_dir)
 	nb_classes = args.nb_classes
 	nb_val_samples = get_nb_files(args.val_dir)
-	np_epoch = args.nb_epoch 
+	nb_epoch = args.nb_epoch 
 	batch_size = args.batch_size
 	train_datagen = ImageDataGenerator(
 		preprocessing_function = preprocess_input,
@@ -64,16 +67,15 @@ def train(args):
 		args.val_dir,
 		target_size=(IM_WIDTH, IM_HEIGHT),
 		batch_size=batch_size)
-	base_model = InceptionV3(weights='imagenet', include_top=False)
+	base_model = VGG16(weights=None, include_top=False)
 	model = add_new_last_layer(base_model, nb_classes)
 	model.compile(optimizer=SGD(lr=0.0001, momentum=0.9), loss='categorical_crossentropy', metrics=['accuracy'])
 	history_tl = model.fit_generator(
 		train_generator,
-		nb_epoch=nb_epoch,
-		samples_per_epoch=nb_train_samples,
+		steps_per_epoch=nb_train_samples,
+		epochs=nb_epoch,
 		validation_data=validation_generator,
-		nb_val_samples=nb_val_samples,
-		class_weight='auto')
+		validation_steps=nb_val_samples,)
 if __name__ == '__main__':
-	args = config.config()
+	args = config.Config()
 	train(args)
